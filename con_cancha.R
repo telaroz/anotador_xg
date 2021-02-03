@@ -6,7 +6,7 @@ library(data.table)
 library(lubridate)
 
 ui <- dashboardPage(
-  dashboardHeader(title = 'Anotador de tiros '),
+  dashboardHeader(title = 'Anotador de tiros'),
   dashboardSidebar(collapsed = TRUE),
   
   dashboardBody(
@@ -106,7 +106,8 @@ server <- function(input, output, session) {
                           marco_vacio = logical(),
                           pasivo = logical(),
                           distancia_a_gol = numeric(),
-                          larga_distancia = logical())
+                          larga_distancia = logical(), 
+                          posicion = character())
   
   # Create a plot
   output$plot1 = renderPlot({
@@ -129,7 +130,9 @@ server <- function(input, output, session) {
                           tipo_de_tiro = paste0(input$art),
                           marco_vacio = input$material_marco,
                           pasivo = input$material_pasivo)[, distancia_a_gol := data.table::fifelse(tipo_de_tiro == '7m', 7,handbaloner::distance_to_goal(c(x , y)))
-                                                         ][, larga_distancia := distancia_a_gol >= 9]
+                                                         ][, larga_distancia := distancia_a_gol >= 9][, posicion := data.table::fcase((x < 0 & y < -2) | (x > 0 & y > 2), 'left',
+                                                                                                                                      (x < 0 & y > 2) |  (x > 0 & y < -2), 'right', 
+                                                                                                                                      default = 'centre')]
     values$DT <- rbind(values$DT, add_row)
   })
   
