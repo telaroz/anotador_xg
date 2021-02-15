@@ -4,12 +4,21 @@ library(ggplot2)
 library(shinyWidgets)
 library(data.table)
 library(lubridate)
+tabla_para_xg <- data.table::fread('tabla_para_xg.csv')
 
 ui <- dashboardPage(
   dashboardHeader(title = 'Anotador de tiros'),
-  dashboardSidebar(collapsed = TRUE),
+  
+  dashboardSidebar(collapsed = TRUE,
+                   sidebarMenu(
+                     menuItem("Marcador de Tiros", tabName = "marcador", icon = icon("people-carry")),
+                     menuItem("Resultados", tabName = "resultados", icon = icon("child"))
+                   )),
   
   dashboardBody(
+    tabItems(
+      # First tab content
+    tabItem(tabName = "marcador",
     fluidRow(  #hr(),
       tableOutput('marcador'),
       tags$head(tags$style("#marcador{color: blue;
@@ -83,9 +92,11 @@ ui <- dashboardPage(
     column(width = 3,
            h4("Tiros realizados"),
            tableOutput("table")),
-    downloadButton("download", "Descargar Sesión", size = 'lg'))
+    downloadButton("download", "Descargar Sesión", size = 'lg')),
+    tabItem(tabName = "resultados",
+            'Resultados')
   
-  
+    ))
   
   
   
@@ -107,7 +118,9 @@ server <- function(input, output, session) {
                           pasivo = logical(),
                           distancia_a_gol = numeric(),
                           larga_distancia = logical(), 
-                          posicion = character())
+                          posicion = character(), 
+                          xg = numeric(),
+                          probabilidad_parada = numeric())
   
   # Create a plot
   output$plot1 = renderPlot({
@@ -132,7 +145,9 @@ server <- function(input, output, session) {
                           pasivo = input$material_pasivo)[, distancia_a_gol := data.table::fifelse(tipo_de_tiro == '7m', 7,handbaloner::distance_to_goal(c(x , y)))
                                                          ][, larga_distancia := distancia_a_gol >= 9][, posicion := data.table::fcase((x < 0 & y < -2) | (x > 0 & y > 2), 'left',
                                                                                                                                       (x < 0 & y > 2) |  (x > 0 & y < -2), 'right', 
-                                                                                                                                      default = 'centre')]
+                                                                                                                                      default = 'centre')
+                                                                                                      ][tabla_para_xg, xg := i.xg, on = c('tipo_de_tiro', 'larga_distancia', 'marco_vacio')
+                                                                                                      ][, probabilidad_parada := 1 - xg]
     values$DT <- rbind(values$DT, add_row)
   })
   
@@ -143,9 +158,9 @@ server <- function(input, output, session) {
   })
   
   # Render the table
-  output$table <- renderTable({
-    data.table::setDT(tail(values$DT, 5))[5:1]
-  })
+    output$table <- renderTable({
+      data.table::setDT(tail(values$DT, 5))[5:1]
+    })
   
   output$marcador <- renderTable({
     data.table::data.table(Motor = values$DT[tirador != 'Barça',sum(gol == 'Gol')], Barça = values$DT[tirador == 'Barça',sum(gol == 'Gol')])
